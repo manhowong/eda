@@ -1,99 +1,157 @@
-# Email AI Reply Assistant
+# Email Draft Assistant (eda)
 
-A client-side, offline-first email drafting and reply assistant powered by modern LLMs (Gemini, OpenAI, OpenRouter) with local template and signature management.
+Email Draft Assistant is a client-side Single Page Application (SPA) for composing and refining email drafts with LLM APIs (Google Gemini, OpenAI, OpenRouter).
 
----
+It runs entirely in the browser and requires no backend server. Configuration, templates, and signatures can be stored in browser storage (IndexedDB/localStorage) or synchronized directly to a local directory on your machine using the File System Access API.
 
-## Architecture & Project Structure
+Demo: https://manhowong.github.io/eda/
 
+## Technical Overview
+
+- **Stack**: React 19, TypeScript, Vite 8, Tailwind CSS v4.
+- **API Communication**: Direct browser-to-API calls via `@google/genai` (Gemini) and `fetch` (OpenAI, OpenRouter compatible endpoints). API keys are stored client-side and sent only to the chosen provider.
+- **Routing**: Hash-based routing (`#/workspace`, `#/templates`, `#/settings`, etc.) implemented via `window.location.hash` and `hashchange` events to ensure direct links and browser refreshes work on static hosts like GitHub Pages without server-side rewrite rules.
+- **Storage Modes**:
+  1. *Browser Storage*: IndexedDB and localStorage (default).
+  2. *Local Directory Sync*: Reads and writes plain Markdown files and `.env` files to a user-selected folder via the browser's File System Access API (`showDirectoryPicker`).
+- **Offline / PWA**: Built with `vite-plugin-pwa` and Service Worker support. The application shell loads offline; LLM generation requires an active network connection.
+
+## Local Folder Structure
+
+When the app is linked to a local folder via the File System Access API, it expects and maintains the following layout:
+
+```text
+<selected-folder>/
+├── profiles/
+│   └── <profile-name>/
+│       └── .env                # Provider, model name, and API keys
+└── projects/
+    └── <project-name>/
+        ├── instructions.md     # Custom system instructions for this project
+        ├── templates/          # Markdown templates
+        │   └── *.md
+        └── signatures/         # Markdown signatures
+            └── *.md
 ```
-├── public/                 # Static assets, PWA manifests, and feather favicon (icon.svg)
+
+### Profile `.env` Format
+
+Each profile directory contains a `.env` file with settings for that profile:
+
+```env
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# For OpenAI:
+# LLM_PROVIDER=openai
+# LLM_MODEL=gpt-4o-mini
+# OPENAI_API_KEY=your_openai_api_key_here
+
+# For OpenRouter:
+# LLM_PROVIDER=openrouter
+# LLM_MODEL=meta-llama/llama-3.3-70b-instruct
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+## Repository Structure
+
+```text
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # GitHub Pages CI/CD workflow
+├── public/                     # Static assets, icons, manifest
 ├── src/
-│   ├── components/         # Reusable UI components:
-│   │   ├── Banner.tsx             # Standardized inline warning/info/error/success banners
-│   │   ├── Modal.tsx              # Accessible dialogs for confirmations & form protection
-│   │   ├── Sidebar.tsx            # Sticky desktop / collapsible mobile navigation & status
-│   │   └── ToastContainer.tsx     # Unified bottom-right notifications & PWA update prompts
-│   ├── hooks/              # Custom React hooks:
-│   │   ├── useOnlineStatus.ts     # Real-time network connectivity detector
-│   │   └── usePWAInstall.ts       # Browser PWA installation prompt lifecycle hook
-│   ├── i18n/               # Localization dictionaries:
-│   │   └── translations.ts        # Fully localized strings (en, zh-TW, zh-CN)
-│   ├── pages/              # Primary view pages:
-│   │   ├── WorkspacePage.tsx      # Drafting workbench (context, key points, tones, generation)
-│   │   ├── SettingsPage.tsx       # Profiles (.env), projects (instructions), API keys, duplication
-│   │   ├── TemplatesPage.tsx      # Markdown templates and email signatures manager
-│   │   ├── HelpPage.tsx           # Keyboard shortcuts, folder layout guide, and .env reference
-│   │   └── AboutPage.tsx          # System information, versioning, and license details
-│   ├── services/           # Core domain services:
-│   │   ├── promptConfig.ts        # Centralized system prompts, response formats, and prompt builders
-│   │   ├── llm.ts                 # Unified client-side LLM caller (Gemini, OpenAI, OpenRouter)
-│   │   ├── fileSystem.ts          # File System Access API integration for local folder sync
-│   │   ├── folderStorage.ts       # IndexedDB storage for remembering active folder handles
-│   │   └── defaultWorkspaceData.ts# Default starter templates, signatures, and instructions
-│   ├── types/              # Global TypeScript declarations and interfaces:
-│   │   ├── filesystem.d.ts        # File System Access API ambient typings
-│   │   └── index.ts               # State, profile, project, and drafting interfaces
-│   ├── base.css            # Design tokens, color system, and typography
-│   ├── main.css            # Component and utility styling
-│   ├── responsive.css      # Scoped mobile and tablet responsive layouts (<= 768px)
-│   └── index.css           # Global stylesheet entry point
-├── index.html              # HTML entry point with metadata, icons, and viewport configuration
-├── package.json            # Project dependencies and npm scripts
-├── tsconfig.json           # TypeScript compiler configuration
-└── vite.config.ts          # Vite build pipeline and PWA plugin configuration
+│   ├── components/             # Reusable UI components
+│   │   ├── Banner.tsx          # Status banners
+│   │   ├── CodeBlockWithCopy.tsx
+│   │   ├── EditableTitleHeader.tsx
+│   │   ├── Modal.tsx
+│   │   ├── SearchInput.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── ToastContainer.tsx
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── useClipboard.ts
+│   │   ├── useFormDirtyGuard.ts
+│   │   ├── useOnlineStatus.ts
+│   │   ├── usePWAInstall.ts
+│   │   └── useTimedFlag.ts
+│   ├── i18n/                   # Translation strings (en, zh-TW, zh-CN)
+│   │   └── translations.ts
+│   ├── pages/                  # Top-level views
+│   │   ├── WorkspacePage.tsx   # Drafting UI
+│   │   ├── SettingsPage.tsx    # Profile & project settings
+│   │   ├── TemplatesPage.tsx   # Template and signature editor
+│   │   ├── HelpPage.tsx        # Keyboard shortcuts and folder documentation
+│   │   └── AboutPage.tsx       # Version, links, and license information
+│   ├── services/               # Core application logic
+│   │   ├── defaultWorkspaceData.ts
+│   │   ├── fileSystem.ts       # File System Access API read/write
+│   │   ├── folderStorage.ts    # IndexedDB directory handle persistence
+│   │   ├── llm.ts              # Provider dispatch and API execution
+│   │   └── promptConfig.ts     # Prompt templates and formatting logic
+│   ├── utils/
+│   │   └── sanitize.ts         # Path/name sanitization
+│   ├── types/                  # TypeScript interfaces and ambient types
+│   ├── base.css                # CSS variables and tokens
+│   ├── main.css                # Component styles
+│   ├── responsive.css          # Mobile breakpoint styles
+│   ├── index.css               # Stylesheet entry point
+│   ├── App.tsx                 # Root application component
+│   └── main.tsx                # React DOM entry point
+├── index.html                  # HTML entry point
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
----
-
-## Key Design Principles
-
-1. **Client-Side & Offline-First**:
-   - Templates, signatures, and API keys are stored client-side in browser storage or synced directly to a user-selected local folder (`assistant-settings/`) via the File System Access API.
-2. **Centralized LLM Configurations (`promptConfig.ts`)**:
-   - System prompts, response format constraints, and prompt assembly (`buildDraftPrompt`) are centralized in a single file for simple tuning and customization.
-3. **Multi-Profile & Multi-Project Isolation**:
-   - **Profiles**: Isolated API credentials stored in `.env` files per profile (supporting Gemini, OpenAI, and OpenRouter).
-   - **Projects**: Isolated instructions (`instructions.md`), templates (`templates/*.md`), and signatures (`signatures/*.md`). Full duplication replicates all instructions, templates, and signatures into the new project.
-4. **Dual Drafting & Refinement**:
-   - Supports drafting emails from scratch based on key points, replying to existing email threads, or synthesizing both with customizable tones (Concise, Formal, Friendly & Warm, Polite Refusal).
-5. **Clean CSS Architecture**:
-   - CSS variables in `base.css`, component classes in `main.css`, and mobile-responsive rules strictly encapsulated in `responsive.css`.
-
----
-
-## Local Development
+## Development
 
 ### Prerequisites
 
-- **Node.js** (v18+ recommended)
-- **npm** (or bun / pnpm)
+- Node.js 18 or later
+- npm (or bun / pnpm)
 
-### Setup & Run
+### Commands
 
-1. **Clone the repository and install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+# Install dependencies
+npm install
 
-2. **Configure environment variables (optional):**
-   ```bash
-   cp .env.example .env
-   ```
-   *(API keys can also be configured directly in the app's Settings page.)*
+# Start development server on http://localhost:3000
+npm run dev
 
-3. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
-   The app will run locally at `http://localhost:3000`.
+# Type check
+npm run lint
 
-4. **Build for production:**
-   ```bash
-   npm run build
-   ```
+# Production build (outputs to dist/)
+npm run build
 
-5. **Type checking & linting:**
-   ```bash
-   npm run lint
-   ```
+# Preview production build locally
+npm run preview
+```
+
+## Deployment (GitHub Pages)
+
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that builds and deploys the project to GitHub Pages on every push to `main` or `master`.
+
+### Base Path
+
+In `vite.config.ts`, Vite sets the production base path using `process.env.BASE_PATH` with a fallback to `'/eda/'`:
+
+```ts
+const isProd = command === 'build';
+const base = isProd ? (process.env.BASE_PATH || '/eda/') : '/';
+```
+
+If deploying under a different repository name or root domain, set the `BASE_PATH` environment variable during build, or adjust `vite.config.ts`.
+
+### Enabling GitHub Pages
+
+1. In your GitHub repository, open **Settings** > **Pages**.
+2. Set **Build and deployment > Source** to **GitHub Actions**.
+3. Pushes to `main` will trigger the workflow automatically.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) for details.
