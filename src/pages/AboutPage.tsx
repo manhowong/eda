@@ -11,10 +11,10 @@ export interface AboutLinks {
 
 // Configurable link targets - replace with actual URLs
 export const ABOUT_LINKS: AboutLinks = {
-  sourceCode: 'https://github.com/manhowong/email-draft-assistant',
-  license: 'https://github.com/manhowong/email-draft-assistant/blob/main/LICENSE',
+  sourceCode: 'https://github.com/manhowong/eda',
+  license: 'https://github.com/manhowong/eda/blob/main/LICENSE',
   developer: 'https://github.com/manhowong',
-  feedback: 'https://github.com/manhowong/email-draft-assistant/issues/new',
+  feedback: 'https://github.com/manhowong/eda/issues/new',
 };
 
 interface AboutPageProps {
@@ -83,7 +83,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ language, links }) => {
               rel="noopener noreferrer"
               className="font-medium text-blue-600 hover:text-blue-500 hover:underline"
             >
-              github.com/manhowong/email-draft-assistant
+              github.com/manhowong/eda
             </a>
           </div>
 
