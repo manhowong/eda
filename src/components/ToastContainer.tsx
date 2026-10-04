@@ -69,7 +69,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
       {needRefresh && (
         <div
           role="alert"
-          className="pointer-events-auto flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border border-neutral-800 bg-neutral-900 text-white shadow-lg text-sm transition-all"
+          className="pointer-events-auto flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-sm border border-neutral-800 bg-neutral-900 text-white shadow-lg text-sm transition-all"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <RefreshCw className="w-4 h-4 text-neutral-300 shrink-0" />
