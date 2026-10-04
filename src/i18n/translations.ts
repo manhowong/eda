@@ -143,6 +143,11 @@ export interface Translations {
     templatesTab: string;
     signaturesTab: string;
     newFile: string;
+    importBtn: string;
+    writeNewFile: string;
+    importing: string;
+    importSuccess: string;
+    importError: string;
     searchPlaceholder: string;
     noFilesFound: string;
     filename: string;
@@ -367,6 +372,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, Translations> = {
       templatesTab: 'Templates',
       signaturesTab: 'Signatures',
       newFile: 'New File',
+      importBtn: 'Import...',
+      writeNewFile: 'Write New File',
+      importing: 'Importing...',
+      importSuccess: 'Imported successfully.',
+      importError: 'Failed to import some files. Please ensure they are in Markdown (.md) format.',
       searchPlaceholder: 'Search files...',
       noFilesFound: 'No files found',
       filename: 'Filename (e.g. follow-up.md)',
@@ -588,6 +598,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, Translations> = {
       templatesTab: '郵件範本',
       signaturesTab: '簽名檔',
       newFile: '新增檔案',
+      importBtn: '匯入...',
+      writeNewFile: '撰寫新檔案',
+      importing: '匯入中...',
+      importSuccess: '匯入成功。',
+      importError: '部分檔案無法匯入。請確保檔案使用 Markdown (.md)格式。',
       searchPlaceholder: '搜尋檔案...',
       noFilesFound: '找不到相符檔案',
       filename: '檔案名稱（例如 follow-up.md）',
@@ -809,6 +824,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, Translations> = {
       templatesTab: '邮件模板',
       signaturesTab: '签名档',
       newFile: '新建文件',
+      importBtn: '导入...',
+      writeNewFile: '编写新文件',
+      importing: '导入中...',
+      importSuccess: '导入成功。',
+      importError: '部分文件无法导入。请确保文件使用 Markdown (.md)格式。',
       searchPlaceholder: '搜索文件...',
       noFilesFound: '未找到匹配文件',
       filename: '文件名称（例如 follow-up.md）',

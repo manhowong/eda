@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WorkspaceState, WorkspaceFile } from '../types';
 import { SupportedLanguage, TRANSLATIONS } from '../i18n/translations';
-import { Plus, Pencil, Copy } from 'lucide-react';
+import { Pencil, Copy, Upload, PenLine } from 'lucide-react';
 import { Banner } from '../components/Banner';
 import { SearchInput } from '../components/SearchInput';
 import { useTimedFlag, useTimedValue } from '../hooks/useTimedFlag';
@@ -58,6 +58,10 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [nameWarning, setNameWarning] = useState<string | null>(null);
   const [confirmDeleteFile, setConfirmDeleteFile, resetConfirmDeleteFile] = useTimedValue<string | null>(null, 3000);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [importSuccess, triggerImportSuccess] = useTimedFlag(2000);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingImportedNameRef = useRef<string | null>(null);
 
   const currentFiles = subfolder === 'templates' ? workspace.templates : workspace.signatures;
 
@@ -88,6 +92,24 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
   );
 
   useEffect(() => {
+    // After an import, workspace refresh is async. If we are waiting for the
+    // freshly imported file to appear, don't let the sync effect fall back to
+    // currentFiles[0] and overwrite the optimistic editor content.
+    const pendingName = pendingImportedNameRef.current;
+    if (pendingName && !isCreatingNew && !isEditingFileName) {
+      const pendingFile = currentFiles.find((f) => f.name === pendingName);
+      if (pendingFile) {
+        // Workspace now contains the imported file — lock onto it.
+        pendingImportedNameRef.current = null;
+        setSelectedFileName(pendingFile.name);
+        setFileNameInput(stripFileExtension(pendingFile.name));
+        setEditorContent(pendingFile.content);
+        return;
+      }
+      // Still waiting for refresh — but if the user picked yet another file
+      // manually, pendingImportedNameRef would have been cleared.
+      if (selectedFileName === pendingName) return;
+    }
     if (activeFile && !isCreatingNew && !isEditingFileName) {
       setSelectedFileName(activeFile.name);
       setFileNameInput(stripFileExtension(activeFile.name));
@@ -102,6 +124,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
   const handleSelectFile = (file: WorkspaceFile) => {
     setIsCreatingNew(false);
     setIsEditingFileName(false);
+    pendingImportedNameRef.current = null;
     setSelectedFileName(file.name);
     setFileNameInput(stripFileExtension(file.name));
     setEditorContent(file.content);
@@ -113,6 +136,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
   const handleStartCreateNew = () => {
     setIsCreatingNew(true);
     setIsEditingFileName(false);
+    pendingImportedNameRef.current = null;
     setNewFileName('');
     setFileNameInput('');
     setEditorContent(
@@ -123,6 +147,75 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
     setError(null);
     setNameWarning(null);
     resetConfirmDeleteFile();
+  };
+
+  const handleTriggerImport = () => {
+    if (!canSaveToDisk || isImporting) return;
+    setError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Copy the FileList FIRST: resetting input.value clears the live FileList.
+    const pickedFiles = e.target.files ? Array.from(e.target.files) : [];
+    // Reset the input so the same file(s) can be selected again later.
+    e.target.value = '';
+    if (pickedFiles.length === 0) return;
+    if (!workspace.hasSettingsFolder) {
+      setError(t.noFolderWarning);
+      return;
+    }
+    if (!workspace.activeProjectName) {
+      setError(t.noProjectWarning);
+      return;
+    }
+    setIsImporting(true);
+    setError(null);
+    let importedCount = 0;
+    let lastImportedName: string | null = null;
+    let lastImportedContent = '';
+    try {
+      for (const file of pickedFiles) {
+        const rawName = file.name;
+        const isMarkdown =
+          rawName.toLowerCase().endsWith('.md') ||
+          rawName.toLowerCase().endsWith('.markdown') ||
+          rawName.toLowerCase().endsWith('.txt') ||
+          file.type === 'text/markdown' ||
+          file.type.startsWith('text/') ||
+          // Some browsers report empty type for .md files — accept by content attempt.
+          file.type === '' ||
+          file.type === 'application/octet-stream';
+        if (!isMarkdown) continue;
+        const content = await file.text();
+        const cleanName = sanitizeFileName(rawName);
+        if (!cleanName) continue;
+        await onSaveFile(subfolder, cleanName, content, null);
+        importedCount += 1;
+        lastImportedName = cleanName;
+        lastImportedContent = content;
+      }
+      if (importedCount === 0) {
+        setError(t.importError);
+      } else {
+        // Workspace reload is async: remember the name and let the sync
+        // effect below select it once workspace contains the new file.
+        // Also optimistically update the editor so feedback is instant.
+        if (lastImportedName) {
+          pendingImportedNameRef.current = lastImportedName;
+          setIsCreatingNew(false);
+          setIsEditingFileName(false);
+          setSelectedFileName(lastImportedName);
+          setFileNameInput(stripFileExtension(lastImportedName));
+          setEditorContent(lastImportedContent);
+        }
+        triggerImportSuccess();
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleDuplicateFile = () => {
@@ -274,6 +367,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
                 setSubfolder('templates');
                 setIsCreatingNew(false);
                 setIsEditingFileName(false);
+                pendingImportedNameRef.current = null;
               }}
               className={`flex-1 ${subfolder === 'templates' ? 'segmented-btn-active' : 'segmented-btn'}`}
             >
@@ -285,6 +379,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
                 setSubfolder('signatures');
                 setIsCreatingNew(false);
                 setIsEditingFileName(false);
+                pendingImportedNameRef.current = null;
               }}
               className={`flex-1 ${subfolder === 'signatures' ? 'segmented-btn-active' : 'segmented-btn'}`}
             >
@@ -299,18 +394,39 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({
             placeholder={t.searchPlaceholder}
           />
 
-          {/* Add file button */}
-          <button
-            type="button"
-            onClick={handleStartCreateNew}
-            disabled={!canSaveToDisk}
-            className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm border border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-950 hover:border-neutral-400 hover:bg-neutral-50 transition cursor-pointer ${
-              !canSaveToDisk ? 'opacity-40 cursor-not-allowed' : ''
-            }`}
-          >
-            <Plus className="w-4 h-4 shrink-0" />
-            <span>{t.newFile}</span>
-          </button>
+          {/* Import + Write actions */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            multiple
+            className="hidden"
+            onChange={handleImportFiles}
+          />
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleStartCreateNew}
+              disabled={!canSaveToDisk || isImporting}
+              className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm border border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-950 hover:border-neutral-400 hover:bg-neutral-50 transition cursor-pointer ${
+                !canSaveToDisk || isImporting ? 'opacity-40 cursor-not-allowed' : ''
+              }`}
+            >
+              <PenLine className="w-4 h-4 shrink-0" />
+              <span>{t.writeNewFile}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleTriggerImport}
+              disabled={!canSaveToDisk || isImporting}
+              className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm border border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-950 hover:border-neutral-400 hover:bg-neutral-50 transition cursor-pointer ${
+                !canSaveToDisk || isImporting ? 'opacity-40 cursor-not-allowed' : ''
+              }`}
+            >
+              <Upload className="w-4 h-4 shrink-0" />
+              <span>{isImporting ? t.importing : importSuccess ? t.importSuccess : t.importBtn}</span>
+            </button>
+          </div>
 
           {/* List */}
           <div className="space-y-1 max-h-[460px] overflow-y-auto">
