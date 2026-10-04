@@ -6,9 +6,14 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({ command }) => {
   // During local development and AI Studio preview (command === 'serve'), serve at root '/'.
-  // For production builds (e.g. GitHub Pages), default to '/eda/' or process.env.BASE_PATH.
+  // For production builds (e.g. GitHub Pages), base comes from process.env.BASE_PATH,
+  // which the deploy workflow fills from actions/configure-pages (e.g. '/eda').
+  // Default to '/' when unset (e.g. a plain local build).
   const isProd = command === 'build';
-  const base = isProd ? (process.env.BASE_PATH || '/eda/') : '/';
+  const rawBase = isProd ? (process.env.BASE_PATH || '/') : '/';
+  // Normalize to a single trailing slash so concatenated asset paths (favicons,
+  // manifest icons, the sidebar logo) resolve correctly.
+  const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
 
   return {
     base,
@@ -30,19 +35,19 @@ export default defineConfig(({ command }) => {
           scope: base,
           icons: [
             {
-              src: `${base}pwa-192x192.png`.replace(/\/\//g, '/'),
+              src: `${base}pwa-192x192.png`,
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: `${base}pwa-512x512.png`.replace(/\/\//g, '/'),
+              src: `${base}pwa-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: `${base}pwa-maskable-512x512.png`.replace(/\/\//g, '/'),
+              src: `${base}pwa-maskable-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
