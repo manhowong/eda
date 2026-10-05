@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({ command }) => {
-  // During local development and AI Studio preview (command === 'serve'), serve at root '/'.
+  // During local development (command === 'serve'), serve at root '/'.
   // For production builds (e.g. GitHub Pages), base comes from process.env.BASE_PATH,
   // which the deploy workflow fills from actions/configure-pages (e.g. '/eda').
   // Default to '/' when unset (e.g. a plain local build).
@@ -69,7 +69,6 @@ export default defineConfig(({ command }) => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
