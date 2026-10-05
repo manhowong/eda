@@ -286,6 +286,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
               <textarea
                 value={keyPoints}
                 onChange={(e) => setKeyPoints(e.target.value)}
+                autoFocus
                 disabled={!hasKey}
                 placeholder={t.keyPointsPlaceholder}
                 className="form-textarea flex-1 w-full min-h-[220px] resize-none"
